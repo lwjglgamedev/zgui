@@ -42,7 +42,7 @@ pub const DrawVert = extern struct {
 };
 //--------------------------------------------------------------------------------------------------
 
-pub fn init(allocator: std.mem.Allocator) void {
+pub fn init(allocator: std.mem.Allocator) !void {
     if (zguiGetCurrentContext() == null) {
         mem_allocator = allocator;
         mem_allocations = std.AutoHashMap(usize, usize).init(allocator);
@@ -51,8 +51,7 @@ pub fn init(allocator: std.mem.Allocator) void {
 
         _ = zguiCreateContext(null);
 
-        temp_buffer = std.ArrayList(u8).init(allocator);
-        temp_buffer.?.resize(3 * 1024 + 1) catch unreachable;
+        temp_buffer = try std.ArrayList(u8).initCapacity(allocator, 3 * 1024 + 1);
 
         if (te_enabled) {
             te.init();
@@ -80,9 +79,9 @@ pub fn initWithExistingContext(allocator: std.mem.Allocator, ctx: Context) void 
 pub fn getCurrentContext() ?Context {
     return zguiGetCurrentContext();
 }
-pub fn deinit() void {
+pub fn deinit(allocator: std.mem.Allocator) void {
     if (zguiGetCurrentContext() != null) {
-        temp_buffer.?.deinit();
+        temp_buffer.?.deinit(allocator);
         zguiDestroyContext(null);
 
         // Must be after destroy imgui context.
@@ -132,13 +131,13 @@ var mem_allocations: ?std.AutoHashMap(usize, usize) = null;
 var mem_mutex: std.Thread.Mutex = .{};
 const mem_alignment = 16;
 
-fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
+fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
     mem_mutex.lock();
     defer mem_mutex.unlock();
 
     const mem = mem_allocator.?.alignedAlloc(
         u8,
-        mem_alignment,
+         @enumFromInt(mem_alignment),
         size,
     ) catch @panic("zgui: out of memory");
 
@@ -147,7 +146,7 @@ fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
     return mem.ptr;
 }
 
-fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void {
+fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     if (maybe_ptr) |ptr| {
         mem_mutex.lock();
         defer mem_mutex.unlock();
@@ -163,8 +162,8 @@ fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void {
 }
 
 extern fn zguiSetAllocatorFunctions(
-    alloc_func: ?*const fn (usize, ?*anyopaque) callconv(.C) ?*anyopaque,
-    free_func: ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void,
+    alloc_func: ?*const fn (usize, ?*anyopaque) callconv(.c) ?*anyopaque,
+    free_func: ?*const fn (?*anyopaque, ?*anyopaque) callconv(.c) void,
 ) void;
 //--------------------------------------------------------------------------------------------------
 pub const ConfigFlags = packed struct(c_int) {
@@ -5117,8 +5116,8 @@ test {
 
     if (@import("zgui_options").with_gizmo) _ = gizmo;
 
-    init(testing.allocator);
-    defer deinit();
+    try init(testing.allocator);
+    defer deinit(testing.allocator);
 
     io.setIniFilename(null);
 
