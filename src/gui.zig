@@ -79,9 +79,9 @@ pub fn initWithExistingContext(allocator: std.mem.Allocator, ctx: Context) void 
 pub fn getCurrentContext() ?Context {
     return zguiGetCurrentContext();
 }
-pub fn deinit(allocator: std.mem.Allocator) void {
+pub fn deinit() void {
     if (zguiGetCurrentContext() != null) {
-        temp_buffer.?.deinit(allocator);
+        temp_buffer.?.deinit(mem_allocator.?);
         zguiDestroyContext(null);
 
         // Must be after destroy imgui context.
@@ -5117,7 +5117,7 @@ test {
     if (@import("zgui_options").with_gizmo) _ = gizmo;
 
     try init(testing.allocator);
-    defer deinit(testing.allocator);
+    defer deinit();
 
     io.setIniFilename(null);
 
