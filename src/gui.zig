@@ -3683,12 +3683,12 @@ extern fn zguiSetNextFrameWantCaptureKeyboard(want_capture_keyboard: bool) void;
 //--------------------------------------------------------------------------------------------------
 var temp_buffer: ?std.ArrayList(u8) = null;
 
-pub fn format(allocator: std.mem.Allocator, scomptime fmt: []const u8, args: anytype) []const u8 {
+pub fn format(allocator: std.mem.Allocator, comptime fmt: []const u8, args: anytype) []const u8 {
     const len = std.fmt.count(fmt, args);
     if (len > temp_buffer.?.items.len) temp_buffer.?.resize(allocator, @intCast(len + 64)) catch unreachable;
     return std.fmt.bufPrint(temp_buffer.?.items, fmt, args) catch unreachable;
 }
-pub fn formatZ(comptime fmt: []const u8, args: anytype) [:0]const u8 {
+pub fn formatZ(allocator: std.mem.Allocator, comptime fmt: []const u8, args: anytype) [:0]const u8 {
     const len = std.fmt.count(fmt ++ "\x00", args);
     if (len > temp_buffer.?.items.len) temp_buffer.?.resize(allocator, @intCast(len + 64)) catch unreachable;
     return std.fmt.bufPrintZ(temp_buffer.?.items, fmt, args) catch unreachable;
